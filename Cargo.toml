@@ -1,0 +1,9 @@
+[package]
+name = "LynxVk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ash = "0.38.0"
+glam = "0.30.4"
+sdl3 = "0.14.36"
