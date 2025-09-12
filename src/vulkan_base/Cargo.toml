@@ -1,0 +1,12 @@
+[package]
+name = "LynxVk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+vulkan_base = { path = "../vulkan_base" }
+vulkan_utils = { path = "../vulkan_utils" }
+winit = "0.27.5"
+
+[build-dependencies]
+shaderc = "0.8.0"
