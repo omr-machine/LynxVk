@@ -20,6 +20,8 @@ mip map implementation: https://pema.dev/2025/05/09/mipmaps-too-much-detail/
 
 https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
 
+3d volumes: http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
+
 VULKAN
 ash
 gpualloc
