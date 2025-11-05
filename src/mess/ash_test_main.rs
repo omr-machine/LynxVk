@@ -7,6 +7,10 @@ use sdl2::{event::Event, keyboard::Keycode};
 
 use crate::mess::ash_test;
 
+use gpu_allocator::vulkan::*;
+use parking_lot::Mutex;
+use std::sync::Arc;
+
 pub fn ash_test_main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -18,6 +22,16 @@ pub fn ash_test_main() {
         .unwrap();
 
     let x = ash_test::Core::new(&window).unwrap();
+
+    let mut allocator = Allocator::new(&AllocatorCreateDesc {
+        instance: x.instance.clone(),
+        device: x.device.clone(),
+        physical_device: x.pdevice,
+        debug_settings: Default::default(),
+        buffer_device_address: true,
+        allocation_sizes: Default::default(),
+    });
+    let allocator = Arc::new(Mutex::new(allocator));
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
