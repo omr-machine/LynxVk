@@ -7,6 +7,10 @@ https://github.com/nvpro-samples/vk_minimal_latest
 https://gist.github.com/notnotrobby/ceef71527b4f15869133ba7b397912e9#file-cgp-md
 
 https://nikitablack.github.io/post/vulkan_with_rust_by_example_1_shaders/
+https://github.com/unknownue/vulkan-tutorial-rust?tab=readme-ov-file
+https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/triangle.rs
+https://github.com/ash-rs/ash
+
 https://vulkan-tutorial.com/en/Overview
 
 https://www.scratchapixel.com/index.html
