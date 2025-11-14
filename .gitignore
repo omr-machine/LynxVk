@@ -1,5 +1,11 @@
 /target
 
+log.txt
+Cargo.lock
+*.spv
+launch.json
+
 .vs/
 .vscode/
 .vsconfig
+
