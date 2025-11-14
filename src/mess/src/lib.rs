@@ -5,7 +5,7 @@ use sdl2::{event::Event, keyboard::Keycode};
 // https://docs.rs/sdl3/0.14.36/sdl3/
 // https://docs.rs/sdl2/latest/sdl2/
 
-use crate::mess::ash_test;
+mod ash_test;
 
 use gpu_allocator::vulkan::*;
 use parking_lot::Mutex;
