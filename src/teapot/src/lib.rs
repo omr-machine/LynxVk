@@ -1,8 +1,11 @@
 mod vulkan;
+mod teapot_data;
 // mod vulkan_data;
 
 use vulkan::VulkanData;
 use vulkan_base::VulkanBase;
+
+const CONCURRENT_RESOURCE_COUNT: u32 = 2;
 
 pub fn main() {
     // Window
@@ -33,7 +36,7 @@ pub fn main() {
     };
 
     // vulkan data
-    let mut vk_data = match VulkanData::new(&vk_base.as_ref().unwrap()) {
+    let mut vk_data = match VulkanData::new(vk_base.as_mut().unwrap()) {
         Ok(vk_data) => Some(vk_data),
         Err(msg) => {
             log::error!("{}", msg);
