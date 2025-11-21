@@ -20,6 +20,7 @@ pub struct VulkanBase {
     pub queue_family: u32,
     pub device: ash::Device,
     pub queue: vk::Queue,
+    pub allocator: gpu_allocator::vulkan::Allocator,
 }
 
 impl VulkanBase {
@@ -81,6 +82,8 @@ impl VulkanBase {
 
         let queue = get_queue(&device_sg, queue_family);
 
+        let allocator = create_allocator(&instance_sg, &device_sg, physical_device)?;
+
         Ok(VulkanBase {
             entry,
             instance: ScopeGuard::into_inner(instance_sg),
@@ -95,6 +98,7 @@ impl VulkanBase {
             queue_family,
             device: ScopeGuard::into_inner(device_sg),
             queue,
+            allocator,
         })
     }
 

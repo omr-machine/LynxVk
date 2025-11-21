@@ -5,5 +5,6 @@ edition = "2021"
 
 [dependencies]
 ash = "0.37.0"
+gpu-allocator = "0.20.0"
 log = "0.4"
 scopeguard = "1.1.0"

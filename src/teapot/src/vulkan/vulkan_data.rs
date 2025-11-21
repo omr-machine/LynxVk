@@ -1,16 +1,28 @@
 use ash::vk;
 use raw_window_handle::HasRawDisplayHandle;
+use core::alloc;
+use std::cell::{Ref, RefCell};
+use scopeguard::{guard, ScopeGuard};
 use vulkan_base::VulkanBase;
+use crate::teapot_data;
 
 pub struct VulkanData {
     pub vertex_shader_module: vk::ShaderModule,
     pub tese_shader_module: vk::ShaderModule,
     pub tesc_shader_module: vk::ShaderModule,
     pub fragment_shader_module: vk::ShaderModule,
+    pub control_points_mem_buffer: vulkan_utils::MemBuffer,
+    pub patches_mem_buffer: vulkan_utils::MemBuffer,
+    pub patch_point_count: u32,
+    pub instances_mem_buffer: vulkan_utils::MemBuffer,
+    pub uniform_mem_buffers: Vec<vulkan_utils::MemBuffer>,
 }
 
 impl VulkanData {
-    pub fn new(vulkan_base: &VulkanBase) -> Result<Self, String> {
+    pub fn new(vulkan_base: &mut VulkanBase) -> Result<Self, String> {
+        let device = &vulkan_base.device;
+        let allocator_rc = RefCell::new(&mut vulkan_base.allocator);
+
         let vertex_sm_sg = {
             let vertex_sm = vulkan_utils::create_shader_module(
                 &vulkan_base.device,
@@ -75,11 +87,117 @@ impl VulkanData {
             })
         };
 
+        let teapot_data = teapot_data::TeapotData::new();
+
+        let control_points_mem_buffer_sg = {
+            let control_points_mem_buffer = vulkan_utils::create_gpu_buffer_init(
+                &vulkan_base.device,
+                *allocator_rc.borrow_mut(),
+                &vulkan_base.debug_utils_loader,
+                vulkan_base.queue_family,
+                vulkan_base.queue,
+                teapot_data.get_control_points_slice(),
+                vk::BufferUsageFlags::STORAGE_BUFFER,
+                vk::AccessFlags::SHADER_READ,
+                vk::PipelineStageFlags::VERTEX_SHADER,
+                "control points buffer",
+            )?;
+
+            guard(control_points_mem_buffer, |mem_buffer| {
+                log::warn!("control points buffer scopeguard");
+                unsafe {
+                    device.destroy_buffer(mem_buffer.buffer, None);
+                }
+                let _ = allocator_rc.borrow_mut().free(mem_buffer.allocation);
+            })
+        };
+
+        let patches_mem_buffer_sg = {
+            let patches_mem_buffer = vulkan_utils::create_gpu_buffer_init(
+                &vulkan_base.device,
+                *allocator_rc.borrow_mut(),
+                &vulkan_base.debug_utils_loader,
+                vulkan_base.queue_family,
+                vulkan_base.queue,
+                teapot_data.get_patches_slice(),
+                vk::BufferUsageFlags::INDEX_BUFFER,
+                vk::AccessFlags::INDEX_READ,
+                vk::PipelineStageFlags::VERTEX_INPUT,
+                "patches buffer",
+            )?;
+
+            guard(patches_mem_buffer, |mem_buffer| {
+                log::warn!("patches buffer scopeguard");
+                unsafe {
+                    device.destroy_buffer(mem_buffer.buffer, None);
+                }
+                let _ = allocator_rc.borrow_mut().free(mem_buffer.allocation);
+            })
+        };
+
+        let patch_point_count = teapot_data.get_patch_point_count();
+
+        let instances_mem_buffer_sg = {
+            let instances_mem_buffer = vulkan_utils::create_gpu_buffer_init(
+                &vulkan_base.device,
+                *allocator_rc.borrow_mut(),
+                &vulkan_base.debug_utils_loader,
+                vulkan_base.queue_family,
+                vulkan_base.queue,
+                teapot_data.get_instances_slice(),
+                vk::BufferUsageFlags::STORAGE_BUFFER,
+                vk::AccessFlags::SHADER_READ,
+                vk::PipelineStageFlags::TESSELLATION_EVALUATION_SHADER,
+                "instances buffer",
+            )?;
+
+            guard(instances_mem_buffer, |mem_buffer| {
+                log::warn!("instances buffer scopeguard");
+                unsafe {
+                    device.destroy_buffer(mem_buffer.buffer, None);
+                }
+                let _ = allocator_rc.borrow_mut().free(mem_buffer.allocation);
+            })
+        };
+
+        let uniform_mem_buffer_sg = {
+            let mut mem_buffers = Vec::with_capacity(crate::CONCURRENT_RESOURCE_COUNT as usize);
+            for i in 0..crate::CONCURRENT_RESOURCE_COUNT {            
+                let mem_buffer = vulkan_utils::create_buffer(
+                    &vulkan_base.device,
+                    *allocator_rc.borrow_mut(),
+                    &vulkan_base.debug_utils_loader,
+                    (16 * std::mem::size_of::<f32>()) as vk::DeviceSize,
+                    vk::BufferUsageFlags::UNIFORM_BUFFER,
+                    gpu_allocator::MemoryLocation::CpuToGpu,
+                    &format!("uniform buffer {}", i),
+                )?;
+
+                mem_buffers.push(mem_buffer);
+            }
+
+            guard(mem_buffers, |mem_buffers| {
+                log::warn!("uniform buffers scopeguard");
+                
+                for mem_buffer in mem_buffers {
+                    unsafe {
+                        device.destroy_buffer(mem_buffer.buffer, None);
+                    }
+                    let _ = allocator_rc.borrow_mut().free(mem_buffer.allocation);
+                }
+            })
+        };
+
         Ok(VulkanData {
             vertex_shader_module: scopeguard::ScopeGuard::into_inner(vertex_sm_sg),
             tese_shader_module: scopeguard::ScopeGuard::into_inner(tese_sm_sg),
             tesc_shader_module: scopeguard::ScopeGuard::into_inner(tesc_sm_sg),
             fragment_shader_module: scopeguard::ScopeGuard::into_inner(fragment_sm_sg),
+            control_points_mem_buffer: scopeguard::ScopeGuard::into_inner(control_points_mem_buffer_sg),
+            patches_mem_buffer: scopeguard::ScopeGuard::into_inner(patches_mem_buffer_sg),
+            patch_point_count,
+            instances_mem_buffer: scopeguard::ScopeGuard::into_inner(instances_mem_buffer_sg),
+            uniform_mem_buffers: scopeguard::ScopeGuard::into_inner(uniform_mem_buffer_sg),
         })
     }
 
