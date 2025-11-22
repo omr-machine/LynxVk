@@ -1,8 +1,8 @@
 use ash::extensions::ext;
 use ash::extensions::khr;
 use ash::vk;
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use gpu_allocator::vulkan;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 pub fn create_entry() -> ash::Entry {
     log::info!("creating entry");

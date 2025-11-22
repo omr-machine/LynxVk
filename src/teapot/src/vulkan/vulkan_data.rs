@@ -1,10 +1,9 @@
+use crate::teapot_data;
 use ash::vk;
 use raw_window_handle::HasRawDisplayHandle;
-use core::alloc;
-use std::cell::{Ref, RefCell};
 use scopeguard::{guard, ScopeGuard};
+use std::cell::RefCell;
 use vulkan_base::VulkanBase;
-use crate::teapot_data;
 
 pub struct VulkanData {
     pub vertex_shader_module: vk::ShaderModule,
@@ -160,9 +159,9 @@ impl VulkanData {
             })
         };
 
-        let uniform_mem_buffer_sg = {
+        let uniform_mem_buffers_sg = {
             let mut mem_buffers = Vec::with_capacity(crate::CONCURRENT_RESOURCE_COUNT as usize);
-            for i in 0..crate::CONCURRENT_RESOURCE_COUNT {            
+            for i in 0..crate::CONCURRENT_RESOURCE_COUNT {
                 let mem_buffer = vulkan_utils::create_buffer(
                     &vulkan_base.device,
                     *allocator_rc.borrow_mut(),
@@ -178,7 +177,7 @@ impl VulkanData {
 
             guard(mem_buffers, |mem_buffers| {
                 log::warn!("uniform buffers scopeguard");
-                
+
                 for mem_buffer in mem_buffers {
                     unsafe {
                         device.destroy_buffer(mem_buffer.buffer, None);
@@ -189,34 +188,43 @@ impl VulkanData {
         };
 
         Ok(VulkanData {
-            vertex_shader_module: scopeguard::ScopeGuard::into_inner(vertex_sm_sg),
-            tese_shader_module: scopeguard::ScopeGuard::into_inner(tese_sm_sg),
-            tesc_shader_module: scopeguard::ScopeGuard::into_inner(tesc_sm_sg),
-            fragment_shader_module: scopeguard::ScopeGuard::into_inner(fragment_sm_sg),
-            control_points_mem_buffer: scopeguard::ScopeGuard::into_inner(control_points_mem_buffer_sg),
-            patches_mem_buffer: scopeguard::ScopeGuard::into_inner(patches_mem_buffer_sg),
+            vertex_shader_module: ScopeGuard::into_inner(vertex_sm_sg),
+            tese_shader_module: ScopeGuard::into_inner(tese_sm_sg),
+            tesc_shader_module: ScopeGuard::into_inner(tesc_sm_sg),
+            fragment_shader_module: ScopeGuard::into_inner(fragment_sm_sg),
+            control_points_mem_buffer: ScopeGuard::into_inner(control_points_mem_buffer_sg),
+            patches_mem_buffer: ScopeGuard::into_inner(patches_mem_buffer_sg),
             patch_point_count,
-            instances_mem_buffer: scopeguard::ScopeGuard::into_inner(instances_mem_buffer_sg),
-            uniform_mem_buffers: scopeguard::ScopeGuard::into_inner(uniform_mem_buffer_sg),
+            instances_mem_buffer: ScopeGuard::into_inner(instances_mem_buffer_sg),
+            uniform_mem_buffers: ScopeGuard::into_inner(uniform_mem_buffers_sg),
         })
     }
 
-    pub fn clean(self, vulkan_base: &VulkanBase) {
+    pub fn clean(self, vulkan_base: &mut VulkanBase) {
         log::info!("cleaning vulkan data");
 
         unsafe {
-            vulkan_base
-                .device
-                .destroy_shader_module(self.vertex_shader_module, None);
-            vulkan_base
-                .device
-                .destroy_shader_module(self.tese_shader_module, None);
-            vulkan_base
-                .device
-                .destroy_shader_module(self.tesc_shader_module, None);
-            vulkan_base
-                .device
-                .destroy_shader_module(self.fragment_shader_module, None);
+            let device = &vulkan_base.device;
+            let allocator = &mut vulkan_base.allocator;
+
+            device.destroy_shader_module(self.vertex_shader_module, None);
+            device.destroy_shader_module(self.tese_shader_module, None);
+            device.destroy_shader_module(self.tesc_shader_module, None);
+            device.destroy_shader_module(self.fragment_shader_module, None);
+
+            device.destroy_buffer(self.control_points_mem_buffer.buffer, None);
+            let _ = allocator.free(self.control_points_mem_buffer.allocation);
+
+            device.destroy_buffer(self.patches_mem_buffer.buffer, None);
+            let _ = allocator.free(self.patches_mem_buffer.allocation);
+
+            device.destroy_buffer(self.instances_mem_buffer.buffer, None);
+            let _ = allocator.free(self.instances_mem_buffer.allocation);
+
+            for mem_buffer in self.uniform_mem_buffers {
+                device.destroy_buffer(mem_buffer.buffer, None);
+                let _ = allocator.free(mem_buffer.allocation);
+            }
         }
     }
 }
@@ -225,14 +233,14 @@ pub fn vulkan_clean(
     vulkan_base: &mut Option<vulkan_base::VulkanBase>,
     vulkan_data: &mut Option<super::VulkanData>,
 ) {
-    let vk_base = vulkan_base.take().unwrap();
+    let mut vk_base = vulkan_base.take().unwrap();
     let vk_data = vulkan_data.take().unwrap();
 
     unsafe {
         let _ = vk_base.device.device_wait_idle();
     }
 
-    vk_data.clean(&vk_base);
+    vk_data.clean(&mut vk_base);
     vk_base.clean();
 }
 

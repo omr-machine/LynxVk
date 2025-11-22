@@ -1,5 +1,5 @@
-mod vulkan;
 mod teapot_data;
+mod vulkan;
 // mod vulkan_data;
 
 use vulkan::VulkanData;
