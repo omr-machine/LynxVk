@@ -10,6 +10,8 @@ https://nikitablack.github.io/post/vulkan_with_rust_by_example_1_shaders/
 https://github.com/unknownue/vulkan-tutorial-rust?tab=readme-ov-file
 https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/triangle.rs
 https://github.com/ash-rs/ash
+https://themaister.net/blog/2019/08/14/yet-another-blog-explaining-vulkan-synchronization/
+https://docs.vulkan.org/spec/latest/index.html
 
 https://vulkan-tutorial.com/en/Overview
 
@@ -30,7 +32,9 @@ VULKAN
 ash
 gpualloc
 gpu-allocator
+vk-mem
 sdl2
+hassle-rs
 
 Example repos:
 https://github.com/SaferGo/CroissantVulkanRenderer
