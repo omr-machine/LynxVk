@@ -106,6 +106,7 @@ impl VulkanBase {
         log::info!("cleaning vulkan base");
 
         unsafe {
+            drop(self.allocator);
             self.device.destroy_device(None);
             self.surface_loader.destroy_surface(self.surface, None);
             self.instance.destroy_instance(None);
