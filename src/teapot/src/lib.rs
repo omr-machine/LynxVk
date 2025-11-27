@@ -63,11 +63,11 @@ pub fn main() {
             } => {
                 *control_flow = ControlFlow::Exit;
 
-                // TODO cleanup
+                log::info!("exit requested");
+
+                vulkan::vulkan_clean(&mut vk_base, &mut vk_data);
 
                 app_exit = true;
-
-                log::info!("exit requested");
             }
 
             Event::MainEventsCleared => {
