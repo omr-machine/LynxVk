@@ -8,6 +8,22 @@ pub struct MemBuffer {
     pub allocation: gpu_allocator::vulkan::Allocation,
 }
 
+pub fn set_debug_utils_object_name2<T: vk::Handle>(
+    debug_utils_loader: &ext::DebugUtils,
+    device: vk::Device,
+    object_handle: T,
+    object_name: &str,
+) {
+    let name_cstr = std::ffi::CString::new(object_name).expect("wrong string parameter");
+
+    let name_info = vk::DebugUtilsObjectNameInfoEXT::builder()
+        .object_type(T::TYPE)
+        .object_handle(object_handle.as_raw())
+        .object_name(&name_cstr);
+
+    let _ = unsafe { debug_utils_loader.debug_utils_set_object_name(device, &name_info) };
+}
+
 pub fn create_shader_module(
     device: &ash::Device,
     path: &std::path::Path,
@@ -49,22 +65,6 @@ pub fn create_shader_module(
     log::info!("{}: created", object_name);
 
     Ok(shader_module)
-}
-
-pub fn set_debug_utils_object_name2<T: vk::Handle>(
-    debug_utils_loader: &ext::DebugUtils,
-    device: vk::Device,
-    object_handle: T,
-    object_name: &str,
-) {
-    let name_cstr = std::ffi::CString::new(object_name).expect("wrong string parameter");
-
-    let name_info = vk::DebugUtilsObjectNameInfoEXT::builder()
-        .object_type(T::TYPE)
-        .object_handle(object_handle.as_raw())
-        .object_name(&name_cstr);
-
-    let _ = unsafe { debug_utils_loader.debug_utils_set_object_name(device, &name_info) };
 }
 
 pub fn create_gpu_buffer_init(
