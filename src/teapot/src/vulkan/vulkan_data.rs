@@ -20,6 +20,8 @@ pub struct VulkanData {
     pub render_pass: vk::RenderPass,
     pub solid_pipeline: vk::Pipeline,
     pub wireframe_pipeline: vk::Pipeline,
+    pub framebuffers: Vec<vk::Framebuffer>,
+    pub should_resize: bool,
 }
 
 impl VulkanData {
@@ -265,6 +267,25 @@ impl VulkanData {
             (sg_1, sg_2)
         };
 
+        let framebuffers_sg = {
+            let framebuffers = vulkan::create_framebuffers(
+                &vulkan_base.device,
+                &vulkan_base.swapchain_image_views,
+                *render_pass_sg,
+                vulkan_base.surface_extent,
+                &vulkan_base.debug_utils_loader,
+            )?;
+
+            guard(framebuffers, move |framebuffers| {
+                log::warn!("framebuffers scopeguard");
+                for fb in framebuffers {
+                    unsafe {
+                        device.destroy_framebuffer(fb, None);
+                    }
+                }
+            })
+        };
+
         Ok(VulkanData {
             vertex_shader_module: ScopeGuard::into_inner(vertex_sm_sg),
             tese_shader_module: ScopeGuard::into_inner(tese_sm_sg),
@@ -280,7 +301,27 @@ impl VulkanData {
             render_pass: ScopeGuard::into_inner(render_pass_sg),
             solid_pipeline: ScopeGuard::into_inner(solid_pipeline_sg),
             wireframe_pipeline: ScopeGuard::into_inner(wireframe_pipeline_sg),
+            framebuffers: ScopeGuard::into_inner(framebuffers_sg),
+            should_resize: false,
         })
+    }
+
+    pub fn resize(&mut self, vulkan_base: &VulkanBase) -> Result<(), String> {
+        unsafe {
+            for &framebuffer in &self.framebuffers {
+                vulkan_base.device.destroy_framebuffer(framebuffer, None);
+            }
+        }
+
+        self.framebuffers = vulkan::create_framebuffers(
+            &vulkan_base.device,
+            &vulkan_base.swapchain_image_views,
+            self.render_pass,
+            vulkan_base.surface_extent,
+            &vulkan_base.debug_utils_loader,
+        )?;
+
+        Ok(())
     }
 
     pub fn clean(self, vulkan_base: &mut VulkanBase) {
@@ -328,6 +369,10 @@ impl VulkanData {
             vulkan_base
                 .device
                 .destroy_pipeline(self.wireframe_pipeline, None);
+
+            for &framebuffer in &self.framebuffers {
+                vulkan_base.device.destroy_framebuffer(framebuffer, None);
+            }
         }
     }
 }

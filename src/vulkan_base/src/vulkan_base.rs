@@ -530,3 +530,183 @@ pub fn create_allocator(
 
     Ok(allocator)
 }
+
+pub fn create_swapchain_loader(instance: &ash::Instance, device: &ash::Device) -> khr::Swapchain {
+    let swapchain_loader = khr::Swapchain::new(instance, device);
+
+    log::info!("swapchain loader created");
+
+    swapchain_loader
+}
+
+pub fn get_surface_capabilities(
+    surface_loader: &khr::Surface,
+    physical_device: vk::PhysicalDevice,
+    surface: vk::SurfaceKHR,
+) -> Result<vk::SurfaceCapabilitiesKHR, String> {
+    log::info!("getting surface capabilities");
+
+    let surface_capabilities = unsafe {
+        surface_loader
+            .get_physical_device_surface_capabilities(physical_device, surface)
+            .map_err(|_| String::from("failed to get physical device surface capabilities"))?
+    };
+
+    log::info!("surface capabilities got");
+
+    Ok(surface_capabilities)
+}
+
+pub fn get_surface_extent(
+    window: &winit::window::Window,
+    surface_capabilities: &vk::SurfaceCapabilitiesKHR,
+) -> vk::Extent2D {
+    let window_size = window.inner_size();
+
+    let mut surface_extent = vk::Extent2D::default();
+
+    if surface_capabilities.current_extent.width == u32::MAX {
+        surface_extent.width = std::cmp::max(
+            surface_capabilities.min_image_extent.width,
+            std::cmp::min(
+                surface_capabilities.max_image_extent.width,
+                window_size.width,
+            ),
+        );
+        surface_extent.height = std::cmp::max(
+            surface_capabilities.min_image_extent.height,
+            std::cmp::min(
+                surface_capabilities.max_image_extent.height,
+                window_size.height,
+            ),
+        );
+    } else {
+        surface_extent = surface_capabilities.current_extent;
+    }
+
+    log::info!("surface extent got: {:?}", surface_extent);
+
+    surface_extent
+}
+
+pub fn create_swapchain(
+    old_swapchain: vk::SwapchainKHR,
+    surface: vk::SurfaceKHR,
+    surface_capabilities: &vk::SurfaceCapabilitiesKHR,
+    surface_format: &vk::SurfaceFormatKHR,
+    surface_extent: vk::Extent2D,
+    present_mode: vk::PresentModeKHR,
+    swapchain_loader: &khr::Swapchain,
+) -> Result<vk::SwapchainKHR, String> {
+    log::info!("creating swapchain");
+
+    let mut image_count = std::cmp::max(surface_capabilities.min_image_count, 3);
+
+    if surface_capabilities.max_image_count != 0 {
+        image_count = std::cmp::min(image_count, surface_capabilities.max_image_count);
+    }
+
+    log::info!("requested swapchain image count: {}", image_count);
+
+    let create_info = vk::SwapchainCreateInfoKHR::builder()
+        .surface(surface)
+        .min_image_count(image_count)
+        .image_format(surface_format.format)
+        .image_color_space(surface_format.color_space)
+        .image_extent(surface_extent)
+        .image_array_layers(1)
+        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+        .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+        .pre_transform(surface_capabilities.current_transform)
+        .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+        .present_mode(present_mode)
+        .clipped(true)
+        .old_swapchain(old_swapchain)
+        .build();
+
+    let swapchain = unsafe {
+        swapchain_loader
+            .create_swapchain(&create_info, None)
+            .map_err(|_| String::from("failed to create swapchain"))?
+    };
+
+    if old_swapchain != vk::SwapchainKHR::null() {
+        unsafe { swapchain_loader.destroy_swapchain(old_swapchain, None) };
+
+        log::info!("old swapchain destroyed");
+    }
+
+    log::info!("swapchain created");
+
+    Ok(swapchain)
+}
+
+pub fn get_swapchain_images(
+    swapchain_loader: &khr::Swapchain,
+    swapchain: vk::SwapchainKHR,
+) -> Result<Vec<vk::Image>, String> {
+    log::info!("getting swapchain images");
+
+    let swapchain_images = unsafe {
+        swapchain_loader
+            .get_swapchain_images(swapchain)
+            .map_err(|_| String::from("failed to get swapchain images"))?
+    };
+
+    log::info!("swapchain images got");
+    log::info!("created swapchain image count: {}", swapchain_images.len());
+
+    Ok(swapchain_images)
+}
+
+pub fn create_swapchain_image_views(
+    device: &ash::Device,
+    swapchain_images: &Vec<vk::Image>,
+    surface_format: &vk::SurfaceFormatKHR,
+) -> Result<Vec<vk::ImageView>, String> {
+    log::info!("creating swapchain images views");
+
+    let mut swapchain_image_views = Vec::with_capacity(swapchain_images.len());
+
+    for (i, &image) in swapchain_images.iter().enumerate() {
+        let create_info = vk::ImageViewCreateInfo::builder()
+            .image(image)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .format(surface_format.format)
+            .components(vk::ComponentMapping {
+                r: vk::ComponentSwizzle::IDENTITY,
+                g: vk::ComponentSwizzle::IDENTITY,
+                b: vk::ComponentSwizzle::IDENTITY,
+                a: vk::ComponentSwizzle::IDENTITY,
+            })
+            .subresource_range(vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            })
+            .build();
+
+        let view = unsafe {
+            device.create_image_view(&create_info, None).map_err(|_| {
+                clear_image_views(device, &swapchain_image_views);
+                format!("failed to create image view {}", i)
+            })?
+        };
+
+        swapchain_image_views.push(view);
+    }
+
+    log::info!("swapchain images views created");
+
+    Ok(swapchain_image_views)
+}
+
+fn clear_image_views(device: &ash::Device, image_views: &Vec<vk::ImageView>) {
+    for &image_view in image_views {
+        unsafe {
+            device.destroy_image_view(image_view, None);
+        };
+    }
+}

@@ -18,14 +18,8 @@ pub fn main() {
         .unwrap();
 
     // vulkan base
-    let device_extensions = vec![];
-    let instance_extensions = match vulkan::get_required_instance_extensions(&window) {
-        Ok(instance_extensions) => instance_extensions,
-        Err(msg) => {
-            log::error!("{}", msg);
-            panic!("{}", msg);
-        }
-    };
+    let device_extensions = vec![ash::extensions::khr::Swapchain::name()];
+    let instance_extensions = vulkan::get_required_instance_extensions(&window).unwrap();
 
     let mut vk_base = match VulkanBase::new(&window, &instance_extensions, &device_extensions) {
         Ok(vk_base) => Some(vk_base),
@@ -80,6 +74,31 @@ pub fn main() {
                     return;
                 }
 
+                let vk_base_ref = vk_base.as_mut().unwrap();
+                let vk_data_ref = vk_data.as_mut().unwrap();
+
+                if vk_data_ref.should_resize {
+                    vk_data_ref.should_resize = false;
+
+                    log::info!("handling resize");
+
+                    if let Err(msg) = vk_base_ref.resize(&window) {
+                        log::error!("{}", msg);
+                        vulkan::vulkan_clean(&mut vk_base, &mut vk_data);
+                        app_exit = true;
+                        *control_flow = ControlFlow::Exit;
+                        return;
+                    }
+
+                    if let Err(msg) = vk_data_ref.resize(&vk_base_ref) {
+                        log::error!("{}", msg);
+                        vulkan::vulkan_clean(&mut vk_base, &mut vk_data);
+                        app_exit = true;
+                        *control_flow = ControlFlow::Exit;
+                        return;
+                    }
+                }
+
                 // TODO draw
             }
 
@@ -88,6 +107,9 @@ pub fn main() {
                 ..
             } => {
                 log::info!("resize requested {:?}", physical_size);
+
+                let vk_data = vk_data.as_mut().unwrap();
+                vk_data.should_resize = true;
             }
 
             _ => {}
