@@ -2,6 +2,7 @@ mod teapot_data;
 mod vulkan;
 // mod vulkan_data;
 
+use ash::vk::Window;
 use vulkan::VulkanData;
 use vulkan_base::VulkanBase;
 
@@ -42,9 +43,13 @@ pub fn main() {
 
     // loop
     let mut app_exit = false;
+    let start_time = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| {
+        use winit::event::ElementState;
         use winit::event::Event;
+        use winit::event::KeyboardInput;
+        use winit::event::VirtualKeyCode;
         use winit::event::WindowEvent;
         use winit::event_loop::ControlFlow;
 
@@ -99,7 +104,20 @@ pub fn main() {
                     }
                 }
 
-                // TODO draw
+                if let Err(msg) = vulkan::draw(
+                    vk_data_ref,
+                    vk_base_ref,
+                    (std::time::Instant::now() - start_time).as_secs_f32(),
+                ) {
+                    log::error!("{}", msg);
+                    vulkan::vulkan_clean(&mut vk_base, &mut vk_data);
+                    app_exit = true;
+                    *control_flow = ControlFlow::Exit;
+                    return;
+                }
+
+                vk_data_ref.curr_resource_index =
+                    (vk_data_ref.curr_resource_index + 1) % CONCURRENT_RESOURCE_COUNT;
             }
 
             Event::WindowEvent {
@@ -111,6 +129,36 @@ pub fn main() {
                 let vk_data = vk_data.as_mut().unwrap();
                 vk_data.should_resize = true;
             }
+
+            Event::WindowEvent {
+                event:
+                    WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                virtual_keycode: Some(virtual_code),
+                                state: ElementState::Pressed,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => match virtual_code {
+                VirtualKeyCode::Space => {
+                    let vk_data = vk_data.as_mut().unwrap();
+                    vk_data.is_wireframe_mode = !vk_data.is_wireframe_mode;
+                }
+                VirtualKeyCode::Plus | VirtualKeyCode::NumpadAdd => {
+                    let vk_data = vk_data.as_mut().unwrap();
+                    vk_data.tesselation_level += 0.1f32;
+                    vk_data.tesselation_level = vk_data.tesselation_level.min(64.0);
+                }
+                VirtualKeyCode::Minus | VirtualKeyCode::NumpadSubtract => {
+                    let vk_data = vk_data.as_mut().unwrap();
+                    vk_data.tesselation_level -= 0.1f32;
+                    vk_data.tesselation_level = vk_data.tesselation_level.max(1.0);
+                }
+                _ => (),
+            },
 
             _ => {}
         }

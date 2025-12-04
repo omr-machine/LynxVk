@@ -22,6 +22,16 @@ pub struct VulkanData {
     pub wireframe_pipeline: vk::Pipeline,
     pub framebuffers: Vec<vk::Framebuffer>,
     pub should_resize: bool,
+    pub image_available_semaphore: vk::Semaphore,
+    pub rendering_finished_semaphore: vk::Semaphore,
+    pub fences: Vec<vk::Fence>,
+    pub command_pools: Vec<vk::CommandPool>,
+    pub descriptor_pools: Vec<vk::DescriptorPool>,
+    pub available_command_buffers: Vec<Vec<vk::CommandBuffer>>,
+    pub used_command_buffers: Vec<Vec<vk::CommandBuffer>>,
+    pub curr_resource_index: u32,
+    pub is_wireframe_mode: bool,
+    pub tesselation_level: f32,
 }
 
 impl VulkanData {
@@ -286,6 +296,83 @@ impl VulkanData {
             })
         };
 
+        let image_available_semaphore_sg = {
+            let semaphore = vulkan_utils::create_semaphore(
+                &vulkan_base.device,
+                &vulkan_base.debug_utils_loader,
+                "image available semaphore",
+            )?;
+
+            guard(semaphore, |semaphore| {
+                log::warn!("image available semaphore scopeguard");
+                unsafe {
+                    device.destroy_semaphore(semaphore, None);
+                }
+            })
+        };
+
+        let rendering_finished_semaphore_sg = {
+            let semaphore = vulkan_utils::create_semaphore(
+                &vulkan_base.device,
+                &vulkan_base.debug_utils_loader,
+                "rendering finished semaphore",
+            )?;
+
+            guard(semaphore, |semaphore| {
+                log::warn!("rendering finished semaphore scopeguard");
+                unsafe {
+                    device.destroy_semaphore(semaphore, None);
+                }
+            })
+        };
+
+        let fences_sg = {
+            let fences =
+                vulkan::create_fences(&vulkan_base.device, &vulkan_base.debug_utils_loader)?;
+
+            guard(fences, |fences| {
+                log::warn!("fences scopeguard");
+                unsafe {
+                    for f in fences {
+                        device.destroy_fence(f, None);
+                    }
+                }
+            })
+        };
+
+        let command_pools_sg = {
+            let command_pools = vulkan::create_command_pools(
+                &vulkan_base.device,
+                vulkan_base.queue_family,
+                &vulkan_base.debug_utils_loader,
+            )?;
+
+            guard(command_pools, |command_pools| {
+                log::warn!("command pools scopeguard");
+                unsafe {
+                    for cp in command_pools {
+                        device.destroy_command_pool(cp, None);
+                    }
+                }
+            })
+        };
+
+        let descriptor_pools_sg = {
+            let descriptor_pools = vulkan::create_descriptor_pools(
+                &vulkan_base.device,
+                &vulkan_base.debug_utils_loader,
+            )?;
+
+            guard(descriptor_pools, |descriptor_pools| {
+                log::warn!("descriptor pools scopeguard");
+                unsafe {
+                    for dp in descriptor_pools {
+                        device.destroy_descriptor_pool(dp, None);
+                    }
+                }
+            })
+        };
+
         Ok(VulkanData {
             vertex_shader_module: ScopeGuard::into_inner(vertex_sm_sg),
             tese_shader_module: ScopeGuard::into_inner(tese_sm_sg),
@@ -303,6 +390,16 @@ impl VulkanData {
             wireframe_pipeline: ScopeGuard::into_inner(wireframe_pipeline_sg),
             framebuffers: ScopeGuard::into_inner(framebuffers_sg),
             should_resize: false,
+            image_available_semaphore: ScopeGuard::into_inner(image_available_semaphore_sg),
+            rendering_finished_semaphore: ScopeGuard::into_inner(rendering_finished_semaphore_sg),
+            fences: ScopeGuard::into_inner(fences_sg),
+            command_pools: ScopeGuard::into_inner(command_pools_sg),
+            descriptor_pools: ScopeGuard::into_inner(descriptor_pools_sg),
+            available_command_buffers: vec![vec![]; crate::CONCURRENT_RESOURCE_COUNT as usize],
+            used_command_buffers: vec![vec![]; crate::CONCURRENT_RESOURCE_COUNT as usize],
+            curr_resource_index: 0,
+            is_wireframe_mode: false,
+            tesselation_level: 1.0,
         })
     }
 
@@ -372,6 +469,28 @@ impl VulkanData {
 
             for &framebuffer in &self.framebuffers {
                 vulkan_base.device.destroy_framebuffer(framebuffer, None);
+            }
+
+            vulkan_base
+                .device
+                .destroy_semaphore(self.image_available_semaphore, None);
+
+            vulkan_base
+                .device
+                .destroy_semaphore(self.rendering_finished_semaphore, None);
+
+            for &fence in &self.fences {
+                vulkan_base.device.destroy_fence(fence, None);
+            }
+
+            for &command_pool in &self.command_pools {
+                vulkan_base.device.destroy_command_pool(command_pool, None);
+            }
+
+            for &descriptor_pool in &self.descriptor_pools {
+                vulkan_base
+                    .device
+                    .destroy_descriptor_pool(descriptor_pool, None);
             }
         }
     }
