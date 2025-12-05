@@ -2,7 +2,6 @@ mod teapot_data;
 mod vulkan;
 // mod vulkan_data;
 
-use ash::vk::Window;
 use vulkan::VulkanData;
 use vulkan_base::VulkanBase;
 
