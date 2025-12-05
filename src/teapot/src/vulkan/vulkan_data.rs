@@ -237,6 +237,7 @@ impl VulkanData {
             let render_pass = vulkan::create_render_pass(
                 &vulkan_base.device,
                 vulkan_base.surface_format.format,
+                vulkan_base.depth_format,
                 &vulkan_base.debug_utils_loader,
             )?;
 
@@ -283,6 +284,7 @@ impl VulkanData {
                 &vulkan_base.swapchain_image_views,
                 *render_pass_sg,
                 vulkan_base.surface_extent,
+                vulkan_base.depth_buffer_mem_image.view,
                 &vulkan_base.debug_utils_loader,
             )?;
 
@@ -415,6 +417,7 @@ impl VulkanData {
             &vulkan_base.swapchain_image_views,
             self.render_pass,
             vulkan_base.surface_extent,
+            vulkan_base.depth_buffer_mem_image.view,
             &vulkan_base.debug_utils_loader,
         )?;
 

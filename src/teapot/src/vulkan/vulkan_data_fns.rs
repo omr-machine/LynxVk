@@ -222,6 +222,12 @@ pub fn create_pipelines(
 
     let vert_inp_state = vk::PipelineVertexInputStateCreateInfo::builder().build();
 
+    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo::builder()
+        .depth_test_enable(true)
+        .depth_write_enable(true)
+        .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL)
+        .build();
+
     let solid_pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
         .flags(vk::PipelineCreateFlags::ALLOW_DERIVATIVES)
         .stages(&stages)
@@ -236,6 +242,7 @@ pub fn create_pipelines(
         .multisample_state(&multisample_state)
         .tessellation_state(&tessellation_state)
         .vertex_input_state(&vert_inp_state)
+        .depth_stencil_state(&depth_stencil_state)
         .build();
 
     let raster_state = vk::PipelineRasterizationStateCreateInfo::builder()
@@ -285,6 +292,7 @@ pub fn create_pipelines(
 pub fn create_render_pass(
     device: &ash::Device,
     surface_format: vk::Format,
+    depth_format: vk::Format,
     debug_utils_loader: &ash::extensions::ext::DebugUtils,
 ) -> Result<vk::RenderPass, String> {
     log::info!("creating render pass");
@@ -304,9 +312,27 @@ pub fn create_render_pass(
             .build(),
     );
 
+    attachment_descriptions.push(
+        vk::AttachmentDescription::builder()
+            .format(depth_format)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .build(),
+    );
+
     let col_attachment_ref = vk::AttachmentReference::builder()
         .attachment(0)
         .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+        .build();
+
+    let depth_attachment_ref = vk::AttachmentReference::builder()
+        .attachment(1)
+        .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
         .build();
 
     let references = [col_attachment_ref];
@@ -317,6 +343,7 @@ pub fn create_render_pass(
         vk::SubpassDescription::builder()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&references)
+            .depth_stencil_attachment(&depth_attachment_ref)
             .build(),
     );
 
@@ -347,12 +374,13 @@ pub fn create_framebuffers(
     swapchain_image_views: &Vec<vk::ImageView>,
     render_pass: vk::RenderPass,
     framebuffer_extent: vk::Extent2D,
+    depth_buffer_view: vk::ImageView,
     debug_utils_loader: &ash::extensions::ext::DebugUtils,
 ) -> Result<Vec<vk::Framebuffer>, String> {
     let mut framebuffers = Vec::with_capacity(swapchain_image_views.len());
 
     for (i, &view) in swapchain_image_views.iter().enumerate() {
-        let attachments = [view];
+        let attachments = [view, depth_buffer_view];
 
         let create_info = vk::FramebufferCreateInfo::builder()
             .render_pass(render_pass)
