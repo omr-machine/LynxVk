@@ -3,12 +3,14 @@ use log::SetLoggerError;
 
 use mess;
 use teapot;
+use teapot_lean;
 
 fn main() {
     let _ = setup_logger();
 
     // mess::ash_test_main();
-    teapot::main();
+    // teapot::main();
+    teapot_lean::main();
 }
 
 fn setup_logger() -> std::result::Result<(), SetLoggerError> {
