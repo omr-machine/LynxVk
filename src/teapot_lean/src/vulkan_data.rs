@@ -44,7 +44,7 @@ impl VulkanData {
         let vertex_sm_sg = {
             let vertex_sm = vulkan_utils::create_shader_module(
                 &vulkan_base.device,
-                std::path::Path::new("shaders/glsl/shader.vert.spv"),
+                std::path::Path::new("shaders/slang/vert.spv"),
                 &vulkan_base.debug_utils_loader,
                 "vertex shader",
             )?;
