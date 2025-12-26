@@ -1,3 +1,4 @@
+use shader_slang::{self as slang, Downcast};
 use std::fs;
 use std::path::Path;
 
@@ -72,7 +73,9 @@ fn compile_shader(path_buf: &std::path::PathBuf, shader_kind: shaderc::ShaderKin
         .join("..")
         .join("..")
         .join("..")
-        .join("shaders");
+        .join("..")
+        .join("shaders")
+        .join("glsl");
 
     std::fs::create_dir_all(spv_path.clone()).expect(&format!(
         "failed to create directory for shader {:?}",
@@ -84,10 +87,124 @@ fn compile_shader(path_buf: &std::path::PathBuf, shader_kind: shaderc::ShaderKin
     fs::write(spv_path, spv.as_binary_u8()).expect("failed to write shader binary");
 }
 
+fn visit_dirs_slang(dir: &Path, cb: &dyn Fn(&str, &slang::GlobalSession)) -> std::io::Result<()> {
+    let global_session = slang::GlobalSession::new().unwrap();
+
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                visit_dirs_slang(&path, cb)?;
+            } else {
+                let path_buf = entry.path();
+                if get_shader_kind_is_slang(&path_buf) {
+                    let tmp_dir = path_buf.to_str();
+                    match tmp_dir {
+                        None => panic!("new path is not a valid UTF-8 sequence"),
+                        Some(s) => cb(s, &global_session),
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn get_shader_kind_is_slang(path_buf: &std::path::PathBuf) -> bool {
+    let extension = path_buf
+        .extension()
+        .expect("file has no extension")
+        .to_str()
+        .expect("extension cannot be converted to &str");
+
+    let is_slang = match extension {
+        "slang" => true,
+        _ => false,
+    };
+
+    is_slang
+}
+
+fn compile_slang(dir: &str, global_session: &slang::GlobalSession) {
+    let search_path = std::ffi::CString::new(dir).unwrap();
+
+    let session_options = slang::CompilerOptions::default()
+        .optimization(slang::OptimizationLevel::High)
+        .matrix_layout_row(true);
+
+    let target_desc = slang::TargetDesc::default()
+        .format(slang::CompileTarget::Spirv)
+        .profile(global_session.find_profile("glsl_450"));
+
+    let targets = [target_desc];
+    let search_paths = [search_path.as_ptr()];
+
+    let session_desc = slang::SessionDesc::default()
+        .targets(&targets)
+        .search_paths(&search_paths)
+        .options(&session_options);
+
+    let session = global_session.create_session(&session_desc).unwrap();
+    let module = session.load_module(dir).unwrap();
+    let entry_point = module.find_entry_point_by_name("main").unwrap();
+
+    let program = session
+        .create_composite_component_type(&[
+            module.downcast().clone(),
+            entry_point.downcast().clone(),
+        ])
+        .unwrap();
+
+    let linked_program = program.link().unwrap();
+
+    let reflection = linked_program.layout(0).unwrap();
+
+    let shader_bytecode = linked_program.entry_point_code(0, 0).unwrap();
+
+    let path_buf = Path::new(dir);
+
+    let mut file_name = path_buf
+        .file_stem()
+        .expect("shader file should have a name")
+        .to_os_string();
+
+    println!("cargo:rerun-if-changed={}", path_buf.display());
+
+    file_name.push(".spv");
+
+    let mut spv_path = path_buf
+        .parent()
+        .expect("failed to get shader file parent folder")
+        .join("..")
+        .join("..")
+        .join("..")
+        .join("..")
+        .join("shaders")
+        .join("slang");
+
+    std::fs::create_dir_all(spv_path.clone()).expect(&format!(
+        "failed to create directory for shader {:?}",
+        path_buf
+    ));
+
+    spv_path.push(file_name);
+
+    println!("{}", spv_path.display());
+    fs::write(spv_path, shader_bytecode.as_slice().to_vec())
+        .expect("failed to write shader binary");
+}
+
 fn main() -> Result<(), i32> {
-    let shaders_dir = Path::new("shaders");
+    let shaders_dir = Path::new("shaders/glsl");
 
     if let Err(_) = visit_dirs(shaders_dir, &compile_shader) {
+        return Err(1);
+    }
+
+    let slang_dir = Path::new("shaders/slang");
+    if let Err(_) = visit_dirs_slang(slang_dir, &compile_slang) {
         return Err(1);
     }
 

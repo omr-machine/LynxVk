@@ -13,3 +13,13 @@ mess = { path = "src/mess" }
 teapot_lean = { path = "src/teapot_lean" }
 teapot = { path = "src/teapot" }
 vulkan_base = { path = "src/vulkan_base" }
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
+# [profile.dev.build-override]
+# debug = true
+
+# [profile.release.build-override]
+# debug = true
