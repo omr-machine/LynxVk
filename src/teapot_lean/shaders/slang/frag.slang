@@ -17,7 +17,7 @@ PSOutput main(PSInput input) {
     PSOutput output;
     output.color = float4(input.color, 1.0);
     // output.color = float4(1.0, 1.0, 0.0, 1.0);
-    
+     
     return output;
 }
 
