@@ -76,7 +76,7 @@ impl VulkanData {
         let tesc_sm_sg = {
             let tesc_sm = vulkan_utils::create_shader_module(
                 &vulkan_base.device,
-                std::path::Path::new("shaders/glsl/shader.tesc.spv"),
+                std::path::Path::new("shaders/slang/tesc.spv"),
                 &vulkan_base.debug_utils_loader,
                 "tessellation control shader",
             )?;

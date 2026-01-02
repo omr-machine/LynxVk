@@ -132,6 +132,7 @@ fn compile_slang(dir: &str, global_session: &slang::GlobalSession) {
 
     let session_options = slang::CompilerOptions::default()
         .optimization(slang::OptimizationLevel::High)
+        // .optimization(slang::OptimizationLevel::None)
         .matrix_layout_row(true);
 
     let target_desc = slang::TargetDesc::default()
@@ -150,6 +151,7 @@ fn compile_slang(dir: &str, global_session: &slang::GlobalSession) {
     let module = session.load_module(dir).unwrap();
     let entry_point = module.find_entry_point_by_name("main").unwrap();
 
+    println!("compiling shader {:?}", dir);
     let program = session
         .create_composite_component_type(&[
             module.downcast().clone(),
@@ -191,7 +193,7 @@ fn compile_slang(dir: &str, global_session: &slang::GlobalSession) {
 
     spv_path.push(file_name);
 
-    println!("{}", spv_path.display());
+    // println!("{}", spv_path.display());
     fs::write(spv_path, shader_bytecode.as_slice().to_vec())
         .expect("failed to write shader binary");
 }
