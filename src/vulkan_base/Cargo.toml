@@ -1,12 +1,14 @@
 [package]
-name = "LynxVk"
+name = "vulkan_base"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-vulkan_base = { path = "../vulkan_base" }
+ash = { version = "0.37.0", default-features = false, features = ["linked"] }
+ash-window = "0.12.0"
+gpu-allocator = "0.20.0"
+log = "0.4"
+raw-window-handle = "0.5.0"
+scopeguard = "1.1.0"
 vulkan_utils = { path = "../vulkan_utils" }
 winit = "0.27.5"
-
-[build-dependencies]
-shaderc = "0.8.0"

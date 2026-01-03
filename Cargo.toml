@@ -3,22 +3,23 @@ name = "LynxVk"
 version = "0.1.0"
 edition = "2024"
 
+# [workspace]
+# members = ["src/teapot", "src/vulkan_base"]
+
 [dependencies]
-anyhow = "1.0.98"
-ash = "0.38.0"
-ash-window = "0.13.0"
-bytemuck = "1.23.1"
-crossbeam-channel = "0.5.15"
-glam = "0.30.4"
-gpu-allocator = "0.28.0"
 log = "0.4.27"
-parking_lot = "0.12.5"
-raw-window-handle = "0.6.2"
-scopeguard = "1.2.0"
-sdl3 = "0.14.36"
 simplelog = "0.12.2"
-vulkano = "0.35.1"
-winit = "0.30.11"
-[dependencies.sdl2]
-version = "0.38.0"
-features = ["raw-window-handle"]
+mess = { path = "src/mess" }
+teapot_lean = { path = "src/teapot_lean" }
+teapot = { path = "src/teapot" }
+vulkan_base = { path = "src/vulkan_base" }
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
+# [profile.dev.build-override]
+# debug = true
+
+# [profile.release.build-override]
+# debug = true
