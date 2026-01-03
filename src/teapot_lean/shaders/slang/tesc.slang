@@ -28,6 +28,8 @@ PatchTessFactors PatchConstantFunction(InputPatch<PerQuad, 16> patch) {
 
 [shader("hull")]
 [domain("quad")]
+[partitioning("fractional_odd")]
+[outputtopology("triangle_cw")]
 [outputcontrolpoints(16)]
 [patchconstantfunc("PatchConstantFunction")]
 PerQuad main(InputPatch<PerQuad, 16> patch, InvocationID invocationID) {

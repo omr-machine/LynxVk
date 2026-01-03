@@ -60,7 +60,7 @@ impl VulkanData {
         let tese_sm_sg = {
             let tese_sm = vulkan_utils::create_shader_module(
                 &vulkan_base.device,
-                std::path::Path::new("shaders/glsl/shader.tese.spv"),
+                std::path::Path::new("shaders/slang/tese.spv"),
                 &vulkan_base.debug_utils_loader,
                 "tessellation evaluation shader",
             )?;
