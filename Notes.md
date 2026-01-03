@@ -7,11 +7,14 @@ https://github.com/nvpro-samples/vk_minimal_latest
 https://gist.github.com/notnotrobby/ceef71527b4f15869133ba7b397912e9#file-cgp-md
 
 https://nikitablack.github.io/post/vulkan_with_rust_by_example_1_shaders/
+https://github.com/nikitablack/rust_vulkan_teapot/tree/step_6
+
 https://github.com/unknownue/vulkan-tutorial-rust?tab=readme-ov-file
 https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/triangle.rs
 https://github.com/ash-rs/ash
 https://themaister.net/blog/2019/08/14/yet-another-blog-explaining-vulkan-synchronization/
 https://docs.vulkan.org/spec/latest/index.html
+https://www.sebastianaaltonen.com/blog/no-graphics-api
 
 https://vulkan-tutorial.com/en/Overview
 
